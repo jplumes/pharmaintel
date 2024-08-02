@@ -285,7 +285,12 @@ def display_results(data, category):
         grouped = data.groupby(['Title'])
         for name, group in grouped:
             with st.expander(name):
-                st.table(group.drop(columns=['Title']))
+                if 'Link' not in group.columns:
+                    st.warning(f"Missing 'Link' column in data for {category}.")
+                    st.write(group)
+                else:
+                    group['Reference'] = group['Link']
+                    st.table(group.drop(columns=['Title', 'Link']))
     else:
         st.warning(f"No results found for {category}")
 
@@ -322,7 +327,10 @@ if choice == "Dashboard":
                 if data:
                     df = pd.DataFrame(data)
                     df['Country'] = country.upper()
-                    df['Reference'] = df['Link']
+                    if 'Link' in df.columns:
+                        df['Reference'] = df['Link']
+                    else:
+                        st.warning(f"Missing 'Link' column for {country.upper()} in {category}.")
                     category_data.append(df)
                 else:
                     st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
