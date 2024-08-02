@@ -1,3 +1,57 @@
+The error you're encountering, requests.exceptions.JSONDecodeError, indicates that the response from the API is not in JSON format, which is causing the response.json() call to fail. This can happen for several reasons, such as the API returning an error message, HTML content, or some other non-JSON response.
+
+To handle this gracefully, you should add error handling to your code to check the response status and content type before attempting to parse it as JSON.
+
+Here's how you can update your fetch_clinical_trials_usa function (and similarly for other functions) to handle such errors:
+
+Updated fetch_clinical_trials_usa Function with Error Handling
+def fetch_clinical_trials_usa(keyword, url, max_results=100):
+    params = {
+        "expr": keyword,
+        "fields": "NCTId,Title,Condition,Status,Phase,StartDate,CompletionDate",
+        "min_rnk": 1,
+        "max_rnk": max_results,
+        "fmt": "json"
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raise an error for bad status codes
+        if response.headers.get('Content-Type') == 'application/json':
+            data = response.json()
+            trials = data['StudyFieldsResponse']['StudyFields']
+            return trials
+        else:
+            st.error("Response content is not in JSON format")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+
+# Similarly, update other fetch functions to handle errors gracefully
+Update Other Fetch Functions
+You should add similar error handling to other fetch functions to ensure they handle non-JSON responses and errors gracefully. Here’s an example for fetch_drug_approvals_usa:
+
+def fetch_drug_approvals_usa(keyword, url, max_results=100):
+    params = {
+        "search": keyword,
+        "limit": max_results
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        if response.headers.get('Content-Type') == 'application/json':
+            data = response.json()
+            approvals = data['results']
+            return approvals
+        else:
+            st.error("Response content is not in JSON format")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+Full Code with Error Handling
+Here’s the complete updated code with error handling added to all fetch functions:
+
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -34,169 +88,232 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
         "max_rnk": max_results,
         "fmt": "json"
     }
-    response = requests.get(url, params=params)
-    data = response.json()
-    trials = data['StudyFieldsResponse']['StudyFields']
-    return trials
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        if response.headers.get('Content-Type') == 'application/json':
+            data = response.json()
+            trials = data['StudyFieldsResponse']['StudyFields']
+            return trials
+        else:
+            st.error("Response content is not in JSON format")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_clinical_trials_eu(keyword, url, max_results=100):
-    response = requests.get(f"{url}?query={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    trials = []
-    for row in soup.select('table.results tbody tr')[:max_results]:
-        cols = row.find_all('td')
-        trials.append({
-            'EudraCT Number': cols[0].text.strip(),
-            'Title': cols[1].text.strip(),
-            'Status': cols[2].text.strip(),
-            'Start Date': cols[3].text.strip(),
-            'End Date': cols[4].text.strip(),
-            'Link': row.find('a')['href']
-        })
-    return trials
+    try:
+        response = requests.get(f"{url}?query={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('table.results tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            trials.append({
+                'EudraCT Number': cols[0].text.strip(),
+                'Title': cols[1].text.strip(),
+                'Status': cols[2].text.strip(),
+                'Start Date': cols[3].text.strip(),
+                'End Date': cols[4].text.strip(),
+                'Link': row.find('a')['href']
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_clinical_trials_anz(keyword, url, max_results=100):
-    response = requests.get(f"{url}?searchTxt={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    trials = []
-    for row in soup.select('div#trialResults div.trial')[:max_results]:
-        title = row.select_one('div.title a').text.strip()
-        status = row.select_one('div.status').text.strip()
-        start_date = row.select_one('div.startDate').text.strip()
-        end_date = row.select_one('div.endDate').text.strip()
-        link = row.select_one('div.title a')['href']
-        trials.append({
-            'Title': title,
-            'Status': status,
-            'Start Date': start_date,
-            'End Date': end_date,
-            'Link': link
-        })
-    return trials
+    try:
+        response = requests.get(f"{url}?searchTxt={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('div#trialResults div.trial')[:max_results]:
+            title = row.select_one('div.title a').text.strip()
+            status = row.select_one('div.status').text.strip()
+            start_date = row.select_one('div.startDate').text.strip()
+            end_date = row.select_one('div.endDate').text.strip()
+            link = row.select_one('div.title a')['href']
+            trials.append({
+                'Title': title,
+                'Status': status,
+                'Start Date': start_date,
+                'End Date': end_date,
+                'Link': link
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_clinical_trials_canada(keyword, url, max_results=100):
-    response = requests.get(f"{url}?search={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    trials = []
-    for row in soup.select('table tbody tr')[:max_results]:
-        cols = row.find_all('td')
-        trials.append({
-            'Protocol Number': cols[0].text.strip(),
-            'Title': cols[1].text.strip(),
-            'Status': cols[2].text.strip(),
-            'Date': cols[3].text.strip(),
-            'Link': row.find('a')['href']
-        })
-    return trials
+    try:
+        response = requests.get(f"{url}?search={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('table tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            trials.append({
+                'Protocol Number': cols[0].text.strip(),
+                'Title': cols[1].text.strip(),
+                'Status': cols[2].text.strip(),
+                'Date': cols[3].text.strip(),
+                'Link': row.find('a')['href']
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_drug_approvals_usa(keyword, url, max_results=100):
     params = {
         "search": keyword,
         "limit": max_results
     }
-    response = requests.get(url, params=params)
-    data = response.json()
-    approvals = data['results']
-    return approvals
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        if response.headers.get('Content-Type') == 'application/json':
+            data = response.json()
+            approvals = data['results']
+            return approvals
+        else:
+            st.error("Response content is not in JSON format")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_drug_approvals_eu(keyword, url, max_results=100):
-    response = requests.get(f"{url}?search_api_fulltext={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('div.view-content div.views-row')[:max_results]:
-        title = row.select_one('h2').text.strip()
-        status = row.select_one('div.field--name-field-status').text.strip()
-        date = row.select_one('div.field--name-field-date-of-referral').text.strip()
-        link = row.select_one('a')['href']
-        approvals.append({
-            'Title': title,
-            'Status': status,
-            'Date': date,
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}?search_api_fulltext={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('div.view-content div.views-row')[:max_results]:
+            title = row.select_one('h2').text.strip()
+            status = row.select_one('div.field--name-field-status').text.strip()
+            date = row.select_one('div.field--name-field-date-of-referral').text.strip()
+            link = row.select_one('a')['href']
+            approvals.append({
+                'Title': title,
+                'Status': status,
+                'Date': date,
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_drug_approvals_australia(keyword, url, max_results=100):
-    response = requests.get(f"{url}/{keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('ol.search-results li')[:max_results]:
-        title = row.select_one('h3').text.strip()
-        date = row.select_one('div.search-result-date').text.strip()
-        link = row.select_one('a')['href']
-        approvals.append({
-            'Title': title,
-            'Date': date,
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}/{keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('ol.search-results li')[:max_results]:
+            title = row.select_one('h3').text.strip()
+            date = row.select_one('div.search-result-date').text.strip()
+            link = row.select_one('a')['href']
+            approvals.append({
+                'Title': title,
+                'Date': date,
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_drug_approvals_canada(keyword, url, max_results=100):
-    response = requests.get(f"{url}?search={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('table tbody tr')[:max_results]:
-        cols = row.find_all('td')
-        link = row.find('a')['href']
-        approvals.append({
-            'Drug Identification Number (DIN)': cols[0].text.strip(),
-            'Brand Name': cols[1].text.strip(),
-            'Company': cols[2].text.strip(),
-            'Active Ingredient(s)': cols[3].text.strip(),
-            'Strength': cols[4].text.strip(),
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}?search={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('table tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            link = row.find('a')['href']
+            approvals.append({
+                'Drug Identification Number (DIN)': cols[0].text.strip(),
+                'Brand Name': cols[1].text.strip(),
+                'Company': cols[2].text.strip(),
+                'Active Ingredient(s)': cols[3].text.strip(),
+                'Strength': cols[4].text.strip(),
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
-    response = requests.get(f"{url}?keyword={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('table tbody tr')[:max_results]:
-        cols = row.find_all('td')
-        link = row.find('a')['href']
-        approvals.append({
-            '510(k) Number': cols[0].text.strip(),
-            'Device Name': cols[1].text.strip(),
-            'Decision Date': cols[2].text.strip(),
-            'Applicant': cols[3].text.strip(),
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}?keyword={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('table tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            link = row.find('a')['href']
+            approvals.append({
+                '510(k) Number': cols[0].text.strip(),
+                'Device Name': cols[1].text.strip(),
+                'Decision Date': cols[2].text.strip(),
+                'Applicant': cols[3].text.strip(),
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_medical_device_approvals_eu(keyword, url, max_results=100):
     # Placeholder for EUDAMED scraping
     return []
 
 def fetch_medical_device_approvals_australia(keyword, url, max_results=100):
-    response = requests.get(f"{url}/{keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('ol.search-results li')[:max_results]:
-        title = row.select_one('h3').text.strip()
-        date = row.select_one('div.search-result-date').text.strip()
-        link = row.select_one('a')['href']
-        approvals.append({
-            'Title': title,
-            'Date': date,
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}/{keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('ol.search-results li')[:max_results]:
+            title = row.select_one('h3').text.strip()
+            date = row.select_one('div.search-result-date').text.strip()
+            link = row.select_one('a')['href']
+            approvals.append({
+                'Title': title,
+                'Date': date,
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
-    response = requests.get(f"{url}?search={keyword}")
-    soup = BeautifulSoup(response.text, 'html.parser')
-    approvals = []
-    for row in soup.select('table tbody tr')[:max_results]:
-        cols = row.find_all('td')
-        link = row.find('a')['href']
-        approvals.append({
-            'Licence Number': cols[0].text.strip(),
-            'Device Name': cols[1].text.strip(),
-            'Licence Holder': cols[2].text.strip(),
-            'Link': link
-        })
-    return approvals
+    try:
+        response = requests.get(f"{url}?search={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('table tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            link = row.find('a')['href']
+            approvals.append({
+                'Licence Number': cols[0].text.strip(),
+                'Device Name': cols[1].text.strip(),
+                'Licence Holder': cols[2].text.strip(),
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
 
 # Load initial data
 keywords = initial_keywords
