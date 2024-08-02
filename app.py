@@ -32,16 +32,13 @@ initial_authorities = {
     }
 }
 
-def log_and_suggest(error_message, url):
+def log_and_display_error(error_message, url, response_text=None):
     logger.error(f"Error: {error_message} | URL: {url}")
-    suggestions = {
-        "404": "Check if the URL is correct and accessible.",
-        "500": "The server encountered an error. Try again later.",
-        "JSONDecodeError": "The response was not in JSON format. Check the API documentation."
-    }
-    for key, suggestion in suggestions.items():
-        if key in error_message:
-            st.warning(suggestion)
+    if response_text:
+        logger.error(f"Response Text: {response_text}")
+    st.error(f"Error: {error_message} | URL: {url}")
+    if response_text:
+        st.error(f"Response Text: {response_text}")
 
 def fetch_clinical_trials_usa(keyword, url, max_results=100):
     params = {
@@ -57,13 +54,17 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
         if 'application/json' in response.headers.get('Content-Type', ''):
             data = response.json()
             trials = data.get('StudyFieldsResponse', {}).get('StudyFields', [])
+            if not trials:
+                log_and_display_error("No trials found", url, response.text)
             return trials
         else:
-            log_and_suggest("Response content is not in JSON format", url)
+            log_and_display_error("Response content is not in JSON format", url, response.text)
             return []
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url)
         return []
+
+# Simplify other functions similarly...
 
 def fetch_clinical_trials_eu(keyword, url, max_results=100):
     try:
@@ -81,9 +82,11 @@ def fetch_clinical_trials_eu(keyword, url, max_results=100):
                 'End Date': cols[4].text.strip(),
                 'Link': url + cols[0].text.strip()
             })
+        if not trials:
+            log_and_display_error("No trials found", url, response.text)
         return trials
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_clinical_trials_anz(keyword, url, max_results=100):
@@ -105,9 +108,11 @@ def fetch_clinical_trials_anz(keyword, url, max_results=100):
                 'End Date': end_date,
                 'Link': link
             })
+        if not trials:
+            log_and_display_error("No trials found", url, response.text)
         return trials
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_clinical_trials_canada(keyword, url, max_results=100):
@@ -125,9 +130,11 @@ def fetch_clinical_trials_canada(keyword, url, max_results=100):
                 'Date': cols[3].text.strip(),
                 'Link': row.find('a')['href']
             })
+        if not trials:
+            log_and_display_error("No trials found", url, response.text)
         return trials
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_drug_approvals_usa(keyword, url, max_results=100):
@@ -141,12 +148,14 @@ def fetch_drug_approvals_usa(keyword, url, max_results=100):
         if 'application/json' in response.headers.get('Content-Type', ''):
             data = response.json()
             approvals = data.get('results', [])
+            if not approvals:
+                log_and_display_error("No approvals found", url, response.text)
             return approvals
         else:
-            log_and_suggest("Response content is not in JSON format", url)
+            log_and_display_error("Response content is not in JSON format", url, response.text)
             return []
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_drug_approvals_eu(keyword, url, max_results=100):
@@ -166,9 +175,11 @@ def fetch_drug_approvals_eu(keyword, url, max_results=100):
                 'Date': date,
                 'Link': "https://www.ema.europa.eu" + link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_drug_approvals_australia(keyword, url, max_results=100):
@@ -186,9 +197,11 @@ def fetch_drug_approvals_australia(keyword, url, max_results=100):
                 'Date': date,
                 'Link': link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_drug_approvals_canada(keyword, url, max_results=100):
@@ -208,9 +221,11 @@ def fetch_drug_approvals_canada(keyword, url, max_results=100):
                 'Strength': cols[4].text.strip(),
                 'Link': link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
@@ -229,9 +244,11 @@ def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
                 'Applicant': cols[3].text.strip(),
                 'Link': link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_medical_device_approvals_eu(keyword, url, max_results=100):
@@ -252,9 +269,11 @@ def fetch_medical_device_approvals_australia(keyword, url, max_results=100):
                 'Date': date,
                 'Link': link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
@@ -272,9 +291,11 @@ def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
                 'Licence Holder': cols[2].text.strip(),
                 'Link': link
             })
+        if not approvals:
+            log_and_display_error("No approvals found", url, response.text)
         return approvals
     except requests.exceptions.RequestException as e:
-        log_and_suggest(str(e), url)
+        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
         return []
 
 def display_results(data, category):
@@ -293,51 +314,34 @@ authorities = initial_authorities
 # Streamlit app
 st.title("Competitive Intelligence Dashboard")
 
-# Sidebar menu
-menu = ["Dashboard", "Add Database"]
-choice = st.sidebar.selectbox("Menu", menu)
+# Input for new keywords
+search_keyword = st.text_input("Enter search keyword")
 
-if choice == "Dashboard":
-    # Input for new keywords
-    search_keyword = st.text_input("Enter search keyword")
+if search_keyword:
+    if '"' in search_keyword:
+        search_keyword = search_keyword.strip('"')  # Exact phrase search
+    else:
+        search_keyword = search_keyword.replace(' ', '+')  # Boolean search
 
-    if search_keyword:
-        if '"' in search_keyword:
-            search_keyword = search_keyword.strip('"')  # Exact phrase search
-        else:
-            search_keyword = search_keyword.replace(' ', '+')  # Boolean search
+    # Display data based on the selected keyword
+    all_data = []
+    for category, sources in authorities.items():
+        st.header(f"{category.replace('_', ' ').title()}")
+        category_data = []
+        for country, url in sources.items():
+            st.subheader(f"{country.upper()}")
+            fetch_function = globals()[f"fetch_{category}_{country}"]
+            data = fetch_function(search_keyword, url)
+            if data:
+                df = pd.DataFrame(data)
+                df['Country'] = country.upper()
+                category_data.append(df)
+            else:
+                st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
+        if category_data:
+            combined_df = pd.concat(category_data)
+            display_results(combined_df, category)
+            all_data.append(combined_df)
 
-        # Display data based on the selected keyword
-        all_data = []
-        for category, sources in authorities.items():
-            st.header(f"{category.replace('_', ' ').title()}")
-            category_data = []
-            for country, url in sources.items():
-                st.subheader(f"{country.upper()}")
-                fetch_function = globals()[f"fetch_{category}_{country}"]
-                data = fetch_function(search_keyword, url)
-                if data:
-                    df = pd.DataFrame(data)
-                    df['Country'] = country.upper()
-                    category_data.append(df)
-                else:
-                    st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
-            if category_data:
-                combined_df = pd.concat(category_data)
-                display_results(combined_df, category)
-                all_data.append(combined_df)
-
-        if not all_data:
-            st.warning(f"No results found for {search_keyword}. Please check the keyword or try again later.")
-
-elif choice == "Add Database":
-    # Input for new data sources
-    new_category = st.text_input("Enter new category (e.g., clinical_trials, drug_approvals, medical_device_approvals)")
-    new_country = st.text_input("Enter country code (e.g., usa, eu, anz, canada)")
-    new_url = st.text_input("Enter URL for the new data source")
-    if st.button("Add Data Source"):
-        if new_category in authorities and new_country:
-            authorities[new_category][new_country] = new_url
-            st.success(f"Data source for '{new_country}' in '{new_category}' category added.")
-        else:
-            st.error("Invalid category or country code.")
+    if not all_data:
+        st.warning(f"No results found for {search_keyword}. Please check the keyword or try again later.")
