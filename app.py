@@ -1,11 +1,3 @@
-To implement these features, we will:
-
-Return Results in a Nice Table Format: Use Streamlit's st.table or st.dataframe to display results in a tabular format.
-Single Keyword Entry Bar with Boolean Logic: Implement a single keyword entry bar and handle boolean logic for exact phrase searches.
-Error Handling and Self-Diagnosis: Implement enhanced error handling to diagnose issues and provide feedback.
-Updated app.py
-Here's the updated code with these features:
-
 import json
 import requests
 from bs4 import BeautifulSoup
