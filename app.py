@@ -1,3 +1,26 @@
+The error you're seeing indicates that there is an unterminated string literal in your code, likely due to a copy-paste or editing mistake. Specifically, it looks like the line if '"' in searchSure, let's continue from where we left off: is incomplete and incorrect.
+
+Here's how to address this issue:
+
+Steps to Fix the Syntax Error
+Locate the Error:
+
+The error message points to line 158 in your app.py file. Review the code around this line to find any incomplete or incorrect string literals.
+Correct the Syntax:
+
+Ensure that the string literals are properly closed, and the logic is correctly implemented.
+Example Correction
+Here is a possible correction for the code snippet mentioned:
+
+# Correct the logic for handling search keywords
+if search_keyword:
+    if '"' in search_keyword:
+        search_keyword = search_keyword.strip('"')  # Exact phrase search
+    else:
+        search_keyword = search_keyword.replace(' ', '+')  # Boolean search
+Full Context of the Corrected Code
+To provide a clear context, here is the corrected and simplified version of the relevant part of your app.py:
+
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -64,76 +87,7 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
         log_and_display_error(str(e), url)
         return []
 
-def fetch_clinical_trials_eu(keyword, url, max_results=100):
-    try:
-        response = requests.get(f"{url}?query={keyword}")
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        trials = []
-        for row in soup.select('table.results tbody tr')[:max_results]:
-            cols = row.find_all('td')
-            trials.append({
-                'EudraCT Number': cols[0].text.strip(),
-                'Title': cols[1].text.strip(),
-                'Status': cols[2].text.strip(),
-                'Start Date': cols[3].text.strip(),
-                'End Date': cols[4].text.strip(),
-                'Link': url + cols[0].text.strip()
-            })
-        if not trials:
-            log_and_display_error("No trials found", url, response.text)
-        return trials
-    except requests.exceptions.RequestException as e:
-        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
-        return []
-
-def fetch_clinical_trials_anz(keyword, url, max_results=100):
-    try:
-        response = requests.get(f"{url}?searchTxt={keyword}")
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        trials = []
-        for row in soup.select('div#trialResults div.trial')[:max_results]:
-            title = row.select_one('div.title a').text.strip()
-            status = row.select_one('div.status').text.strip()
-            start_date = row.select_one('div.startDate').text.strip()
-            end_date = row.select_one('div.endDate').text.strip()
-            link = row.select_one('div.title a')['href']
-            trials.append({
-                'Title': title,
-                'Status': status,
-                'Start Date': start_date,
-                'End Date': end_date,
-                'Link': link
-            })
-        if not trials:
-            log_and_display_error("No trials found", url, response.text)
-        return trials
-    except requests.exceptions.RequestException as e:
-        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
-        return []
-
-def fetch_clinical_trials_canada(keyword, url, max_results=100):
-    try:
-        response = requests.get(f"{url}?search={keyword}")
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        trials = []
-        for row in soup.select('table tbody tr')[:max_results]:
-            cols = row.find_all('td')
-            trials.append({
-                'Protocol Number': cols[0].text.strip(),
-                'Title': cols[1].text.strip(),
-                'Status': cols[2].text.strip(),
-                'Date': cols[3].text.strip(),
-                'Link': row.find('a')['href']
-            })
-        if not trials:
-            log_and_display_error("No trials found", url, response.text)
-        return trials
-    except requests.exceptions.RequestException as e:
-        log_and_display_error(str(e), url, response.text if 'response' in locals() else None)
-        return []
+# Other fetch functions here...
 
 def display_results(data, category):
     if not data.empty:
@@ -155,63 +109,30 @@ st.title("Competitive Intelligence Dashboard")
 search_keyword = st.text_input("Enter search keyword")
 
 if search_keyword:
-    if '"' in searchSure, let's continue from where we left off:
-
-```python
-if search_keyword:
     if '"' in search_keyword:
-        keywords = [kw.strip() for kw in search_keyword.split('"') if kw.strip()]
+        search_keyword = search_keyword.strip('"')  # Exact phrase search
     else:
-        keywords = [kw.strip() for kw in search_keyword.split(',') if kw.strip()]
+        search_keyword = search_keyword.replace(' ', '+')  # Boolean search
 
-# Input for selecting authorities
-selected_authorities = {
-    "clinical_trials": st.multiselect("Select Clinical Trials Authorities", list(authorities["clinical_trials"].keys()), default=list(authorities["clinical_trials"].keys())),
-    "drug_approvals": st.multiselect("Select Drug Approvals Authorities", list(authorities["drug_approvals"].keys()), default=list(authorities["drug_approvals"].keys())),
-    "medical_device_approvals": st.multiselect("Select Medical Device Approvals Authorities", list(authorities["medical_device_approvals"].keys()), default=list(authorities["medical_device_approvals"].keys()))
-}
+    # Display data based on the selected keyword
+    all_data = []
+    for category, sources in authorities.items():
+        st.header(f"{category.replace('_', ' ').title()}")
+        category_data = []
+        for country, url in sources.items():
+            st.subheader(f"{country.upper()}")
+            fetch_function = globals()[f"fetch_{category}_{country}"]
+            data = fetch_function(search_keyword, url)
+            if data:
+                df = pd.DataFrame(data)
+                df['Country'] = country.upper()
+                category_data.append(df)
+            else:
+                st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
+        if category_data:
+            combined_df = pd.concat(category_data)
+            display_results(combined_df, category)
+            all_data.append(combined_df)
 
-# Fetch and display clinical trials
-st.subheader("Clinical Trials Data")
-clinical_trials_data = []
-for keyword in keywords:
-    for authority in selected_authorities["clinical_trials"]:
-        if authority == "usa":
-            clinical_trials_data.extend(fetch_clinical_trials_usa(keyword, authorities["clinical_trials"]["usa"]))
-        elif authority == "eu":
-            clinical_trials_data.extend(fetch_clinical_trials_eu(keyword, authorities["clinical_trials"]["eu"]))
-        elif authority == "anz":
-            clinical_trials_data.extend(fetch_clinical_trials_anz(keyword, authorities["clinical_trials"]["anz"]))
-        elif authority == "canada":
-            clinical_trials_data.extend(fetch_clinical_trials_canada(keyword, authorities["clinical_trials"]["canada"]))
-
-clinical_trials_df = pd.DataFrame(clinical_trials_data)
-display_results(clinical_trials_df, "Clinical Trials")
-
-# Fetch and display drug approvals
-st.subheader("Drug Approvals Data")
-drug_approvals_data = []
-for keyword in keywords:
-    for authority in selected_authorities["drug_approvals"]:
-        # Implement similar fetch functions for drug approvals
-        pass
-
-drug_approvals_df = pd.DataFrame(drug_approvals_data)
-display_results(drug_approvals_df, "Drug Approvals")
-
-# Fetch and display medical device approvals
-st.subheader("Medical Device Approvals Data")
-medical_device_approvals_data = []
-for keyword in keywords:
-    for authority in selected_authorities["medical_device_approvals"]:
-        # Implement similar fetch functions for medical device approvals
-        pass
-
-medical_device_approvals_df = pd.DataFrame(medical_device_approvals_data)
-display_results(medical_device_approvals_df, "Medical Device Approvals")
-This code handles:
-
-Fetching clinical trials data for different regions.
-Displaying results in an expandable, grouped format using Streamlit.
-Logging and displaying errors as they occur.
-You will need to implement similar fetch functions for drug approvals and medical device approvals, following the pattern of the clinical trials functions.
+    if not all_data:
+        st.warning(f"No results found for {search_keyword}. Please check the keyword or try again later.")
