@@ -1,3 +1,150 @@
+It seems there are several issues with the URLs and the way the data is being fetched. Let’s address each issue step by step.
+
+Clinical Trials
+EU and ANZ
+For the EU and ANZ, the issue might be due to the structure of the website or the way the URLs are constructed. Let’s update the functions to ensure they correctly parse the HTML content.
+
+Canada
+The error for Canada indicates that the URL might be incorrect or the endpoint doesn't exist.
+
+Drug Approvals
+USA
+The error indicates that the response is not in JSON format. This could be due to an incorrect endpoint or parameters.
+
+EU
+The 404 error indicates that the URL is incorrect or the endpoint doesn't exist.
+
+Updated Code
+Here’s the updated code with corrections:
+
+Correcting Clinical Trials
+def fetch_clinical_trials_eu(keyword, url, max_results=100):
+    try:
+        response = requests.get(f"{url}?query={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('table.results tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            trials.append({
+                'EudraCT Number': cols[0].text.strip(),
+                'Title': cols[1].text.strip(),
+                'Status': cols[2].text.strip(),
+                'Start Date': cols[3].text.strip(),
+                'End Date': cols[4].text.strip(),
+                'Link': url + cols[0].text.strip()  # Construct the link
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+
+def fetch_clinical_trials_anz(keyword, url, max_results=100):
+    try:
+        response = requests.get(f"{url}?searchTxt={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('div#trialResults div.trial')[:max_results]:
+            title = row.select_one('div.title a').text.strip()
+            status = row.select_one('div.status').text.strip()
+            start_date = row.select_one('div.startDate').text.strip()
+            end_date = row.select_one('div.endDate').text.strip()
+            link = row.select_one('div.title a')['href']
+            trials.append({
+                'Title': title,
+                'Status': status,
+                'Start Date': start_date,
+                'End Date': end_date,
+                'Link': link
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+
+def fetch_clinical_trials_canada(keyword, url, max_results=100):
+    try:
+        response = requests.get(f"{url}?search={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        trials = []
+        for row in soup.select('table tbody tr')[:max_results]:
+            cols = row.find_all('td')
+            trials.append({
+                'Protocol Number': cols[0].text.strip(),
+                'Title': cols[1].text.strip(),
+                'Status': cols[2].text.strip(),
+                'Date': cols[3].text.strip(),
+                'Link': row.find('a')['href']
+            })
+        return trials
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+Correcting Drug Approvals
+def fetch_drug_approvals_usa(keyword, url, max_results=100):
+    params = {
+        "search": keyword,
+        "limit": max_results
+    }
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        # Check if response is in JSON format
+        if 'application/json' in response.headers.get('Content-Type', ''):
+            data = response.json()
+            approvals = data.get('results', [])
+            return approvals
+        else:
+            st.error("Response content is not in JSON format")
+            return []
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+
+def fetch_drug_approvals_eu(keyword, url, max_results=100):
+    try:
+        response = requests.get(f"https://www.ema.europa.eu/en/medicines?search_api_fulltext={keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('div.view-content div.views-row')[:max_results]:
+            title = row.select_one('h2').text.strip()
+            status = row.select_one('div.field--name-field-status').text.strip()
+            date = row.select_one('div.field--name-field-date-of-referral').text.strip()
+            link = row.select_one('a')['href']
+            approvals.append({
+                'Title': title,
+                'Status': status,
+                'Date': date,
+                'Link': "https://www.ema.europa.eu" + link  # Construct the full link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+
+def fetch_drug_approvals_australia(keyword, url, max_results=100):
+    try:
+        response = requests.get(f"https://www.tga.gov.au/search-node/{keyword}")
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        approvals = []
+        for row in soup.select('ol.search-results li')[:max_results]:
+            title = row.select_one('h3').text.strip()
+            date = row.select_one('div.search-result-date').text.strip()
+            link = row.select_one('a')['href']
+            approvals.append({
+                'Title': title,
+                'Date': date,
+                'Link': link
+            })
+        return approvals
+    except requests.exceptions.RequestException as e:
+        st.error(f"An error occurred: {e}")
+        return []
+Full Code with All Corrections
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -15,15 +162,15 @@ initial_authorities = {
     },
     "drug_approvals": {
         "usa": "https://api.fda.gov/drug/ndc.json",
-        "eu": "https://www.ema.europa.eu/en/medicines/search_api",
-        "australia": "https://www.tga.gov.au/search/node/",
+        "eu": "https://www.ema.europa.eu/en/medicines",
+        "australia": "https://www.tga.gov.au/search-node",
         "canada": "https://health-products.canada.ca/dpd-bdpp/index-eng.jsp"
     },
     "medical_device_approvals": {
         "usa": "https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfPMN/pmn.cfm",
         "eu": "https://ec.europa.eu/tools/eudamed",
-        "australia": "https://www.tga.gov.au/search/node/",
-        "canada": "https://health-products.canada.ca/mdall-limh/"
+        "australia": "https://www.tga.gov.au/search/node",
+        "canada": "https://health-products.canada.ca/mdall-limh"
     }
 }
 
@@ -38,9 +185,9 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()  # Raise an error for bad status codes
-        if response.headers.get('Content-Type') == 'application/json':
+        if 'application/json' in response.headers.get('Content-Type', ''):
             data = response.json()
-            trials = data['StudyFieldsResponse']['StudyFields']
+            trials = data.get('StudyFieldsResponse', {}).get('StudyFields', [])
             return trials
         else:
             st.error("Response content is not in JSON format")
@@ -49,7 +196,6 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
         st.error(f"An error occurred: {e}")
         return []
 
-# Similarly, update other fetch functions to handle errors gracefully
 def fetch_clinical_trials_eu(keyword, url, max_results=100):
     try:
         response = requests.get(f"{url}?query={keyword}")
@@ -64,7 +210,7 @@ def fetch_clinical_trials_eu(keyword, url, max_results=100):
                 'Status': cols[2].text.strip(),
                 'Start Date': cols[3].text.strip(),
                 'End Date': cols[4].text.strip(),
-                'Link': row.find('a')['href']
+                'Link': url + cols[0].text.strip()  # Construct the link
             })
         return trials
     except requests.exceptions.RequestException as e:
@@ -123,9 +269,9 @@ def fetch_drug_approvals_usa(keyword, url, max_results=100):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-        if response.headers.get('Content-Type') == 'application/json':
+        if 'application/json' in response.headers.get('Content-Type', ''):
             data = response.json()
-            approvals = data['results']
+            approvals = data.get('results', [])
             return approvals
         else:
             st.error("Response content is not in JSON format")
@@ -136,7 +282,7 @@ def fetch_drug_approvals_usa(keyword, url, max_results=100):
 
 def fetch_drug_approvals_eu(keyword, url, max_results=100):
     try:
-        response = requests.get(f"{url}?search_api_fulltext={keyword}")
+        response = requests.get(f"https://www.ema.europa.eu/en/medicines?search_api_fulltext={keyword}")
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         approvals = []
@@ -149,7 +295,7 @@ def fetch_drug_approvals_eu(keyword, url, max_results=100):
                 'Title': title,
                 'Status': status,
                 'Date': date,
-                'Link': link
+                'Link': "https://www.ema.europa.eu" + link  # Construct the full link
             })
         return approvals
     except requests.exceptions.RequestException as e:
@@ -158,7 +304,7 @@ def fetch_drug_approvals_eu(keyword, url, max_results=100):
 
 def fetch_drug_approvals_australia(keyword, url, max_results=100):
     try:
-        response = requests.get(f"{url}/{keyword}")
+        response = requests.get(f"https://www.tga.gov.au/search-node/{keyword}")
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         approvals = []
