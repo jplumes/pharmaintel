@@ -1,7 +1,20 @@
+To implement these features, we will:
+
+Return Results in a Nice Table Format: Use Streamlit's st.table or st.dataframe to display results in a tabular format.
+Single Keyword Entry Bar with Boolean Logic: Implement a single keyword entry bar and handle boolean logic for exact phrase searches.
+Error Handling and Self-Diagnosis: Implement enhanced error handling to diagnose issues and provide feedback.
+Updated app.py
+Here's the updated code with these features:
+
 import json
 import requests
 from bs4 import BeautifulSoup
+import pandas as pd
 import streamlit as st
+from loguru import logger
+
+# Configure logging
+logger.add("error_log.log", rotation="500 MB")
 
 # Initial keywords and authorities
 initial_keywords = ["botulinum toxin", "botox", "dermal fillers"]
@@ -27,6 +40,17 @@ initial_authorities = {
     }
 }
 
+def log_and_suggest(error_message, url):
+    logger.error(f"Error: {error_message} | URL: {url}")
+    suggestions = {
+        "404": "Check if the URL is correct and accessible.",
+        "500": "The server encountered an error. Try again later.",
+        "JSONDecodeError": "The response was not in JSON format. Check the API documentation."
+    }
+    for key, suggestion in suggestions.items():
+        if key in error_message:
+            st.warning(suggestion)
+
 def fetch_clinical_trials_usa(keyword, url, max_results=100):
     params = {
         "expr": keyword,
@@ -43,10 +67,11 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
             trials = data.get('StudyFieldsResponse', {}).get('StudyFields', [])
             return trials
         else:
-            st.error("Response content is not in JSON format")
+            error_message = "Response content is not in JSON format"
+            log_and_suggest(error_message, url)
             return []
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_clinical_trials_eu(keyword, url, max_results=100):
@@ -67,7 +92,7 @@ def fetch_clinical_trials_eu(keyword, url, max_results=100):
             })
         return trials
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_clinical_trials_anz(keyword, url, max_results=100):
@@ -91,7 +116,7 @@ def fetch_clinical_trials_anz(keyword, url, max_results=100):
             })
         return trials
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_clinical_trials_canada(keyword, url, max_results=100):
@@ -111,7 +136,7 @@ def fetch_clinical_trials_canada(keyword, url, max_results=100):
             })
         return trials
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_drug_approvals_usa(keyword, url, max_results=100):
@@ -127,10 +152,11 @@ def fetch_drug_approvals_usa(keyword, url, max_results=100):
             approvals = data.get('results', [])
             return approvals
         else:
-            st.error("Response content is not in JSON format")
+            error_message = "Response content is not in JSON format"
+            log_and_suggest(error_message, url)
             return []
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_drug_approvals_eu(keyword, url, max_results=100):
@@ -152,7 +178,7 @@ def fetch_drug_approvals_eu(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_drug_approvals_australia(keyword, url, max_results=100):
@@ -172,7 +198,7 @@ def fetch_drug_approvals_australia(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_drug_approvals_canada(keyword, url, max_results=100):
@@ -194,7 +220,7 @@ def fetch_drug_approvals_canada(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
@@ -215,7 +241,7 @@ def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_medical_device_approvals_eu(keyword, url, max_results=100):
@@ -239,7 +265,7 @@ def fetch_medical_device_approvals_australia(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
@@ -259,7 +285,7 @@ def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
             })
         return approvals
     except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
+        log_and_suggest(str(e), url)
         return []
 
 # Load initial data
@@ -275,26 +301,31 @@ choice = st.sidebar.selectbox("Menu", menu)
 
 if choice == "Dashboard":
     # Input for new keywords
-    new_keyword = st.text_input("Enter new search keyword")
-    if st.button("Add Keyword"):
-        keywords.append(new_keyword)
-        st.success(f"Keyword '{new_keyword}' added.")
+    search_keyword = st.text_input("Enter search keyword")
 
-    # Select keyword to search
-    search_keyword = st.selectbox("Select search keyword", keywords)
-
-    # Display data based on the selected keyword
     if search_keyword:
+        if '"' in search_keyword:
+            search_keyword = search_keyword.strip('"')  # Exact phrase search
+        else:
+            search_keyword = search_keyword.replace(' ', '+')  # Boolean search
+
+        # Display data based on the selected keyword
+        all_data = []
         for category, sources in authorities.items():
             st.header(f"{category.replace('_', ' ').title()}")
             for country, url in sources.items():
                 st.subheader(f"{country.upper()}")
                 fetch_function = globals()[f"fetch_{category}_{country}"]
                 data = fetch_function(search_keyword, url)
-                for item in data:
-                    st.write(item)
-                    if 'Link' in item:
-                        st.markdown(f"[Link to Source]({item['Link']})")
+                if data:
+                    df = pd.DataFrame(data)
+                    st.dataframe(df)
+                    all_data.append(df)
+                else:
+                    st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
+
+        if not all_data:
+            st.warning(f"No results found for {search_keyword}. Please check the keyword or try again later.")
 
 elif choice == "Add Database":
     # Input for new data sources
