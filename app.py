@@ -280,6 +280,15 @@ def fetch_medical_device_approvals_canada(keyword, url, max_results=100):
         log_and_suggest(str(e), url)
         return []
 
+def display_results(data, category):
+    if not data.empty:
+        grouped = data.groupby(['Title'])
+        for name, group in grouped:
+            with st.expander(name):
+                st.table(group.drop(columns=['Title']))
+    else:
+        st.warning(f"No results found for {category}")
+
 # Load initial data
 keywords = initial_keywords
 authorities = initial_authorities
@@ -305,16 +314,22 @@ if choice == "Dashboard":
         all_data = []
         for category, sources in authorities.items():
             st.header(f"{category.replace('_', ' ').title()}")
+            category_data = []
             for country, url in sources.items():
                 st.subheader(f"{country.upper()}")
                 fetch_function = globals()[f"fetch_{category}_{country}"]
                 data = fetch_function(search_keyword, url)
                 if data:
                     df = pd.DataFrame(data)
-                    st.dataframe(df)
-                    all_data.append(df)
+                    df['Country'] = country.upper()
+                    df['Reference'] = df['Link']
+                    category_data.append(df)
                 else:
                     st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
+            if category_data:
+                combined_df = pd.concat(category_data)
+                display_results(combined_df, category)
+                all_data.append(combined_df)
 
         if not all_data:
             st.warning(f"No results found for {search_keyword}. Please check the keyword or try again later.")
