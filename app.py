@@ -53,14 +53,13 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
     }
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status()  # Raise an error for bad status codes
+        response.raise_for_status()
         if 'application/json' in response.headers.get('Content-Type', ''):
             data = response.json()
             trials = data.get('StudyFieldsResponse', {}).get('StudyFields', [])
             return trials
         else:
-            error_message = "Response content is not in JSON format"
-            log_and_suggest(error_message, url)
+            log_and_suggest("Response content is not in JSON format", url)
             return []
     except requests.exceptions.RequestException as e:
         log_and_suggest(str(e), url)
@@ -80,7 +79,7 @@ def fetch_clinical_trials_eu(keyword, url, max_results=100):
                 'Status': cols[2].text.strip(),
                 'Start Date': cols[3].text.strip(),
                 'End Date': cols[4].text.strip(),
-                'Link': url + cols[0].text.strip()  # Construct the link
+                'Link': url + cols[0].text.strip()
             })
         return trials
     except requests.exceptions.RequestException as e:
@@ -144,8 +143,7 @@ def fetch_drug_approvals_usa(keyword, url, max_results=100):
             approvals = data.get('results', [])
             return approvals
         else:
-            error_message = "Response content is not in JSON format"
-            log_and_suggest(error_message, url)
+            log_and_suggest("Response content is not in JSON format", url)
             return []
     except requests.exceptions.RequestException as e:
         log_and_suggest(str(e), url)
@@ -166,7 +164,7 @@ def fetch_drug_approvals_eu(keyword, url, max_results=100):
                 'Title': title,
                 'Status': status,
                 'Date': date,
-                'Link': "https://www.ema.europa.eu" + link  # Construct the full link
+                'Link': "https://www.ema.europa.eu" + link
             })
         return approvals
     except requests.exceptions.RequestException as e:
@@ -237,8 +235,7 @@ def fetch_medical_device_approvals_usa(keyword, url, max_results=100):
         return []
 
 def fetch_medical_device_approvals_eu(keyword, url, max_results=100):
-    # Placeholder for EUDAMED scraping
-    return []
+    return [] # Placeholder for EUDAMED scraping
 
 def fetch_medical_device_approvals_australia(keyword, url, max_results=100):
     try:
@@ -285,12 +282,7 @@ def display_results(data, category):
         grouped = data.groupby(['Title'])
         for name, group in grouped:
             with st.expander(name):
-                if 'Link' not in group.columns:
-                    st.warning(f"Missing 'Link' column in data for {category}.")
-                    st.write(group)
-                else:
-                    group['Reference'] = group['Link']
-                    st.table(group.drop(columns=['Title', 'Link']))
+                st.table(group.drop(columns=['Title']))
     else:
         st.warning(f"No results found for {category}")
 
@@ -327,10 +319,6 @@ if choice == "Dashboard":
                 if data:
                     df = pd.DataFrame(data)
                     df['Country'] = country.upper()
-                    if 'Link' in df.columns:
-                        df['Reference'] = df['Link']
-                    else:
-                        st.warning(f"Missing 'Link' column for {country.upper()} in {category}.")
                     category_data.append(df)
                 else:
                     st.warning(f"No results found for {search_keyword} in {category} for {country.upper()}")
