@@ -1,62 +1,9 @@
-The error you're encountering, requests.exceptions.JSONDecodeError, indicates that the response from the API is not in JSON format, which is causing the response.json() call to fail. This can happen for several reasons, such as the API returning an error message, HTML content, or some other non-JSON response.
-
-To handle this gracefully, you should add error handling to your code to check the response status and content type before attempting to parse it as JSON.
-
-Here's how you can update your fetch_clinical_trials_usa function (and similarly for other functions) to handle such errors:
-
-Updated fetch_clinical_trials_usa Function with Error Handling
-def fetch_clinical_trials_usa(keyword, url, max_results=100):
-    params = {
-        "expr": keyword,
-        "fields": "NCTId,Title,Condition,Status,Phase,StartDate,CompletionDate",
-        "min_rnk": 1,
-        "max_rnk": max_results,
-        "fmt": "json"
-    }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()  # Raise an error for bad status codes
-        if response.headers.get('Content-Type') == 'application/json':
-            data = response.json()
-            trials = data['StudyFieldsResponse']['StudyFields']
-            return trials
-        else:
-            st.error("Response content is not in JSON format")
-            return []
-    except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
-        return []
-
-# Similarly, update other fetch functions to handle errors gracefully
-Update Other Fetch Functions
-You should add similar error handling to other fetch functions to ensure they handle non-JSON responses and errors gracefully. Here’s an example for fetch_drug_approvals_usa:
-
-def fetch_drug_approvals_usa(keyword, url, max_results=100):
-    params = {
-        "search": keyword,
-        "limit": max_results
-    }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        if response.headers.get('Content-Type') == 'application/json':
-            data = response.json()
-            approvals = data['results']
-            return approvals
-        else:
-            st.error("Response content is not in JSON format")
-            return []
-    except requests.exceptions.RequestException as e:
-        st.error(f"An error occurred: {e}")
-        return []
-Full Code with Error Handling
-Here’s the complete updated code with error handling added to all fetch functions:
-
 import json
 import requests
 from bs4 import BeautifulSoup
 import streamlit as st
 
+# Initial keywords and authorities
 initial_keywords = ["botulinum toxin", "botox", "dermal fillers"]
 
 initial_authorities = {
@@ -90,7 +37,7 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
     }
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status()
+        response.raise_for_status()  # Raise an error for bad status codes
         if response.headers.get('Content-Type') == 'application/json':
             data = response.json()
             trials = data['StudyFieldsResponse']['StudyFields']
@@ -102,6 +49,7 @@ def fetch_clinical_trials_usa(keyword, url, max_results=100):
         st.error(f"An error occurred: {e}")
         return []
 
+# Similarly, update other fetch functions to handle errors gracefully
 def fetch_clinical_trials_eu(keyword, url, max_results=100):
     try:
         response = requests.get(f"{url}?query={keyword}")
@@ -322,35 +270,41 @@ authorities = initial_authorities
 # Streamlit app
 st.title("Competitive Intelligence Dashboard")
 
-# Input for new keywords
-new_keyword = st.text_input("Enter new search keyword")
-if st.button("Add Keyword"):
-    keywords.append(new_keyword)
-    st.success(f"Keyword '{new_keyword}' added.")
+# Sidebar menu
+menu = ["Dashboard", "Add Database"]
+choice = st.sidebar.selectbox("Menu", menu)
 
-# Input for new data sources
-new_category = st.text_input("Enter new category (e.g., clinical_trials, drug_approvals, medical_device_approvals)")
-new_country = st.text_input("Enter country code (e.g., usa, eu, anz, canada)")
-new_url = st.text_input("Enter URL for the new data source")
-if st.button("Add Data Source"):
-    if new_category in authorities and new_country:
-        authorities[new_category][new_country] = new_url
-        st.success(f"Data source for '{new_country}' in '{new_category}' category added.")
-    else:
-        st.error("Invalid category or country code.")
+if choice == "Dashboard":
+    # Input for new keywords
+    new_keyword = st.text_input("Enter new search keyword")
+    if st.button("Add Keyword"):
+        keywords.append(new_keyword)
+        st.success(f"Keyword '{new_keyword}' added.")
 
-# Select keyword to search
-search_keyword = st.selectbox("Select search keyword", keywords)
+    # Select keyword to search
+    search_keyword = st.selectbox("Select search keyword", keywords)
 
-# Display data based on the selected keyword
-if search_keyword:
-    for category, sources in authorities.items():
-        st.header(f"{category.replace('_', ' ').title()}")
-        for country, url in sources.items():
-            st.subheader(f"{country.upper()}")
-            fetch_function = globals()[f"fetch_{category}_{country}"]
-            data = fetch_function(search_keyword, url)
-            for item in data:
-                st.write(item)
-                if 'Link' in item:
-                    st.markdown(f"[Link to Source]({item['Link']})")
+    # Display data based on the selected keyword
+    if search_keyword:
+        for category, sources in authorities.items():
+            st.header(f"{category.replace('_', ' ').title()}")
+            for country, url in sources.items():
+                st.subheader(f"{country.upper()}")
+                fetch_function = globals()[f"fetch_{category}_{country}"]
+                data = fetch_function(search_keyword, url)
+                for item in data:
+                    st.write(item)
+                    if 'Link' in item:
+                        st.markdown(f"[Link to Source]({item['Link']})")
+
+elif choice == "Add Database":
+    # Input for new data sources
+    new_category = st.text_input("Enter new category (e.g., clinical_trials, drug_approvals, medical_device_approvals)")
+    new_country = st.text_input("Enter country code (e.g., usa, eu, anz, canada)")
+    new_url = st.text_input("Enter URL for the new data source")
+    if st.button("Add Data Source"):
+        if new_category in authorities and new_country:
+            authorities[new_category][new_country] = new_url
+            st.success(f"Data source for '{new_country}' in '{new_category}' category added.")
+        else:
+            st.error("Invalid category or country code.")
