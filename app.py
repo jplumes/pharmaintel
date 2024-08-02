@@ -1,26 +1,3 @@
-The error you're seeing indicates that there is an unterminated string literal in your code, likely due to a copy-paste or editing mistake. Specifically, it looks like the line if '"' in searchSure, let's continue from where we left off: is incomplete and incorrect.
-
-Here's how to address this issue:
-
-Steps to Fix the Syntax Error
-Locate the Error:
-
-The error message points to line 158 in your app.py file. Review the code around this line to find any incomplete or incorrect string literals.
-Correct the Syntax:
-
-Ensure that the string literals are properly closed, and the logic is correctly implemented.
-Example Correction
-Here is a possible correction for the code snippet mentioned:
-
-# Correct the logic for handling search keywords
-if search_keyword:
-    if '"' in search_keyword:
-        search_keyword = search_keyword.strip('"')  # Exact phrase search
-    else:
-        search_keyword = search_keyword.replace(' ', '+')  # Boolean search
-Full Context of the Corrected Code
-To provide a clear context, here is the corrected and simplified version of the relevant part of your app.py:
-
 import json
 import requests
 from bs4 import BeautifulSoup
